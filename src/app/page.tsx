@@ -1,103 +1,224 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import LoanCalculator from "@/components/loan/LoanCalculator";
+import LoanStatistic from "@/components/loan/LoanStatistic";
+import LoanSummary from "@/components/loan/LoanSummary";
+import LoanAmortizationTable from "@/components/loan/LoanAmortizationTable";
+import Section from "@/components/layout/Section";
+import CashRequired from "@/components/loan/CashRequired";
+import HeroSlider from "@/components/utils/HeroSlider";
+import PropertyCardGallery from "@/components/utils/PropertyCardGallery";
+import { Property } from "@/types/property";
+import BaseEmblaCarousel from "@/components/emblaCarousel/EmblaBaseCarousel";
+import useDeviceDetect from "@/hooks/useDeviceDetect";
+import { useHydrated } from "@/hooks/useHydrated";
+import { useLeadFormStore } from "@/stores/leadFormStore";
+
+export default function HomePage() {
+  const isMobile = useDeviceDetect();
+  const hydrated = useHydrated();
+  const openLeadForm = useLeadFormStore((state) => state.openForm);
+  const slides = [
+    {
+      id: 1,
+      imageUrl: "/images/home.jpg",
+      heading: "Find Your Dream Property in Johor Bahru",
+      subheading:
+        "Discover new projects, sub-sale, and rental listings all in one place.",
+      ctaText: "Explore Projects",
+      ctaLink: "/projects",
+      alt: "Modern residential property in Johor Bahru",
+    },
+    {
+      id: 2,
+      imageUrl: "/images/living-room.jpg",
+      heading: "Live Near Everything You Love",
+      subheading:
+        "Shopping, schools, and serene neighborhoods just minutes away.",
+      ctaText: "View Listings",
+      ctaLink: "/listings",
+      alt: "Spacious living room interior",
+    },
+    {
+      id: 3,
+      imageUrl: "/images/apartment-jb.jpg",
+      heading: "Invest in Property with Confidence",
+      subheading: "We help you choose the right one for your future.",
+      ctaText: "Get Started",
+      ctaLink: "/contact",
+      alt: "Modern apartment building in Johor Bahru",
+    },
+  ];
+  const propertyData: Property = {
+    id: 1,
+    projectName: "Sky Heights Residence",
+    location: "Taman Sutera Utama, Johor Bahru",
+    price: 850000,
+    sqft: 850,
+    rooms: 3,
+    bathrooms: 2,
+    images: ["/images/home.jpg", "/images/living-room.jpg"],
+    category: "For Sale",
+    status: "Published",
+    propertyType: "Condo",
+    area: "Skudai",
+    listType: "New Launch",
+    dateCompleted: "2023-12-01",
+    tenure: "Freehold",
+    developer: "ABC Developer",
+  };
+  // Sample property data array
+  const propertyList: Property[] = [
+    {
+      id: 1,
+      projectName: "Sky Heights Residence",
+      location: "Taman Sutera Utama, Johor Bahru",
+      price: 850000,
+      sqft: 850,
+      rooms: 3,
+      bathrooms: 2,
+      images: ["/images/home.jpg", "/images/living-room.jpg"],
+      category: "For Sale",
+      status: "Published",
+      propertyType: "Condo",
+      area: "Skudai",
+      listType: "New Launch",
+      dateCompleted: "2023-12-01",
+      tenure: "Freehold",
+      developer: "ABC Developer",
+    },
+    {
+      id: 2,
+      projectName: "Ocean View Villas",
+      location: "Penang Island",
+      price: 1200000,
+      sqft: 1200,
+      rooms: 4,
+      bathrooms: 3,
+      images: ["/images/apartment-jb.jpg", "/images/property-hero.jpg"],
+      category: "For Sale",
+      status: "Featured",
+      propertyType: "Villa",
+      area: "Batu Ferringhi",
+      listType: "Premium",
+      dateCompleted: "2024-06-01",
+      tenure: "Leasehold",
+      developer: "XYZ Properties",
+    },
+    {
+      id: 3,
+      projectName: "Urban Loft Apartments",
+      location: "Kuala Lumpur City Center",
+      price: 650000,
+      sqft: 700,
+      rooms: 2,
+      bathrooms: 2,
+      images: ["/images/living-room.jpg", "/images/apartment-jb.jpg"],
+      category: "For Rent",
+      status: "Published",
+      propertyType: "Apartment",
+      area: "KLCC",
+      listType: "Ready Unit",
+      dateCompleted: "2022-03-15",
+      tenure: "Freehold",
+      developer: "Metro Builders",
+    },
+  ];
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <>
+      {/* HERO Section */}
+      <HeroSlider />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+      <Section>
+        <BaseEmblaCarousel
+          plugins={["autoplay", "scale"]}
+          options={{ loop: true }}
+          slideHeight="auto"
+          slideSpacing="1 rem"
+          slideSize={hydrated ? (isMobile ? "100%" : "55%") : "55%"}
+          showArrows={false}
+          showDots={false}
+          pauseAutoplayOnHover
+        >
+          {propertyList.map((property) => (
+            <PropertyCardGallery
+              property={property}
+              onApplyClick={() => {
+                // Open lead form modal for this property
+                console.log("Apply for:", property.projectName);
+                openLeadForm();
+              }}
+              onWhatsAppClick={() => {
+                window.open(
+                  `https://wa.me/60123456789?text=Inquiry about ${encodeURIComponent(
+                    property.projectName
+                  )}`
+                );
+              }}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          ))}
+        </BaseEmblaCarousel>
+      </Section>
+
+      {/* LOAN TOOLS Section */}
+      <Section>
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 px-4 py-6">
+          {/* Loan Calculator */}
+          <div className="xl:col-span-8">
+            <LoanCalculator />
+          </div>
+
+          {/* Loan Statistic */}
+          <div className="xl:col-span-4 content-center">
+            <LoanStatistic />
+          </div>
+
+          {/* Loan Summary */}
+          <div className="xl:col-span-6">
+            <LoanSummary />
+          </div>
+
+          {/* Cash Required */}
+          <div className="xl:col-span-6">
+            <CashRequired />
+          </div>
+
+          <div className="xl:col-span-12">
+            <LoanAmortizationTable />
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </Section>
+
+      <Section>
+        <PropertyCardGallery property={propertyData} />
+      </Section>
+
+      {/* PROPERTY CAROUSEL Section */}
+
+      {/* CTA or Newsletter Section */}
+      <section className="min-h-screen flex flex-col justify-center items-center text-center bg-primary text-white px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl space-y-6">
+          <h2 className="text-3xl font-bold">
+            Stay Updated with the Latest Projects
+          </h2>
+          <p className="text-lg text-white/90">
+            Subscribe to our newsletter and never miss out.
+          </p>
+          <form className="flex flex-col sm:flex-row items-center gap-4">
+            <input
+              type="email"
+              placeholder="Enter your email"
+              className="w-full sm:w-auto px-4 py-2 rounded-lg text-black focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="bg-white text-primary font-semibold px-6 py-2 rounded-lg"
+            >
+              Subscribe
+            </button>
+          </form>
+        </div>
+      </section>
+    </>
   );
 }

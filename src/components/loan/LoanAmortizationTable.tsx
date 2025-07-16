@@ -1,0 +1,174 @@
+'use client'
+
+import { useState } from 'react'
+import { saveAs } from 'file-saver'
+import { useAmortizationSchedule } from '@/hooks/useAmortizationSchedule'
+import { formatCurrency } from '@/lib/utils'
+import { ChevronDown, ChevronUp } from 'lucide-react'
+
+export default function LoanAmortizationTable() {
+  const rows = useAmortizationSchedule()
+  const [showAmortizationSection, setShowAmortizationSection] = useState(false)
+  const [expandedYears, setExpandedYears] = useState<number[]>([])
+
+  const toggleYear = (year: number) =>
+    setExpandedYears(prev =>
+      prev.includes(year) ? prev.filter(y => y !== year) : [...prev, year]
+    )
+
+  const toggleAllYears = () => {
+    const years = Array.from(new Set(rows.map(r => r.year)))
+    const allExpanded = years.every(y => expandedYears.includes(y))
+    setExpandedYears(allExpanded ? [] : years)
+  }
+
+  const exportCSV = () => {
+    const header = 'Year,Month,Principal (RM),Interest (RM),Total Payment (RM),Balance (RM)\n'
+    const body = rows
+      .map(r => `${r.year},${r.month},${r.principal},${r.interest},${r.total},${r.balance}`)
+      .join('\n')
+    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8' })
+    saveAs(blob, 'monthly_amortization_schedule.csv')
+  }
+
+  const grouped = rows.reduce<Record<number, typeof rows>>((acc, row) => {
+    acc[row.year] = acc[row.year] || []
+    acc[row.year].push(row)
+    return acc
+  }, {})
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Top Sticky Bar */}
+      <div
+        className="sticky top-0 z-10 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-md rounded-lg px-4 py-4 flex flex-col gap-3 transition hover:shadow-lg"
+      >
+        {/* Title */}
+        <div
+          className="flex items-center justify-between cursor-pointer"
+          onClick={() => setShowAmortizationSection(prev => !prev)}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-xl">📊</span>
+            <h2 className="text-lg sm:text-xl font-bold text-primary">
+              Amortization Overview
+            </h2>
+          </div>
+            {showAmortizationSection ? (
+              <ChevronUp className="w-5 h-5 shrink-0" />
+            ) : (
+              <ChevronDown className="w-5 h-5 shrink-0" />
+            )}
+        </div>
+
+        {/* Buttons */}
+        {showAmortizationSection && (
+          <div
+            className="flex flex-col sm:flex-row gap-2"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={toggleAllYears}
+              className="w-full sm:w-auto px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-sm rounded-lg shadow hover:brightness-105"
+            >
+              {expandedYears.length === Object.keys(grouped).length
+                ? '🔽 Collapse All'
+                : '🔼 Expand All'}
+            </button>
+            <button
+              onClick={exportCSV}
+              className="w-full sm:w-auto px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm rounded-lg shadow-md dark:bg-zinc-700 transition"
+            >
+              ⬇️ Download CSV
+            </button>
+          </div>
+        )}
+      </div>
+      {/* Amortization Section */}
+      {showAmortizationSection && (
+        <div className="space-y-6">
+          {Object.entries(grouped).map(([yearStr, months]) => {
+            const year = Number(yearStr)
+            const totalPrincipal = months.reduce((sum, r) => sum + r.principal, 0)
+            const totalInterest = months.reduce((sum, r) => sum + r.interest, 0)
+            const isExpanded = expandedYears.includes(year)
+
+            return (
+              <div
+                key={year}
+                className="rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden bg-white dark:bg-zinc-900"
+              >
+                <button
+                  onClick={() => toggleYear(year)}
+                  className="w-full flex justify-between items-center px-6 py-4 bg-gradient-to-r from-blue-100 via-white to-rose-100 dark:from-zinc-800 dark:via-zinc-700 dark:to-zinc-800 transition-colors hover:brightness-105"
+                >
+                  <div>
+                    <p className="text-lg font-semibold">📆 Year {year}</p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      Principal: {formatCurrency(totalPrincipal)} | Interest: {formatCurrency(totalInterest)}
+                    </p>
+                  </div>
+                  <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">
+                    {isExpanded ? '▼' : '▶'}
+                  </span>
+                </button>
+
+                {isExpanded && (
+                  <div className="overflow-x-auto touch-auto scroll-smooth">
+                    <table className="min-w-[700px] w-full text-sm text-center">
+                      <thead className="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                        <tr>
+                          <th className="p-2">Month</th>
+                          <th className="p-2">Principal</th>
+                          <th className="p-2">Interest</th>
+                          <th className="p-2">Payment Split</th>
+                          <th className="p-2">Balance</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-zinc-900">
+                        {months.map(row => {
+                          const total = row.principal + row.interest
+                          const principalPct = (row.principal / total) * 100
+                          const interestPct = 100 - principalPct
+
+                          return (
+                            <tr key={`${year}-${row.month}`} className="border-t border-zinc-200 dark:border-zinc-700">
+                              <td className="p-2 font-medium">{row.month}</td>
+                              <td className="p-2">{formatCurrency(row.principal)}</td>
+                              <td className="p-2">{formatCurrency(row.interest)}</td>
+                              <td className="p-2">
+                                <div className="flex w-full h-3 rounded overflow-hidden shadow-inner">
+                                  <div
+                                    className="bg-blue-500"
+                                    style={{
+                                      width: `${principalPct}%`,
+                                      borderTopLeftRadius: '0.375rem',
+                                      borderBottomLeftRadius: '0.375rem'
+                                    }}
+                                  />
+                                  <div
+                                    className="bg-rose-500"
+                                    style={{
+                                      width: `${interestPct}%`,
+                                      borderTopRightRadius: '0.375rem',
+                                      borderBottomRightRadius: '0.375rem'
+                                    }}
+                                  />
+                                </div>
+                              </td>
+                              <td className="p-2">{formatCurrency(row.balance)}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}

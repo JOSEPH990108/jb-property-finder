@@ -1,0 +1,291 @@
+.embla {
+  max-width: 50rem;
+  margin: auto;
+  --slide-height: auto;
+  --slide-spacing: 1rem;
+  --slide-size: 55%;
+}
+.embla__viewport {
+  overflow: hidden;
+}
+.embla__container {
+  display: flex;
+  touch-action: pan-y pinch-zoom;
+  margin-left: calc(var(--slide-spacing) * -1);
+}
+.embla__slide {
+  transform: translate3d(0, 0, 0);
+  flex: 0 0 var(--slide-size);
+  min-width: 0;
+  padding-left: var(--slide-spacing);
+}
+.embla__slide__number {
+  box-shadow: inset 0 0 0 0.2rem var(--detail-medium-contrast);
+  border-radius: 1.8rem;
+  font-size: 4rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--slide-height);
+  user-select: none;
+}
+.embla__controls {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  justify-content: space-between;
+  gap: 1.2rem;
+  margin-top: 1.8rem;
+}
+.embla__buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+}
+.embla__button {
+  -webkit-tap-highlight-color: rgba(var(--text-high-contrast-rgb-value), 0.5);
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: transparent;
+  touch-action: manipulation;
+  display: inline-flex;
+  text-decoration: none;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  box-shadow: inset 0 0 0 0.2rem var(--detail-medium-contrast);
+  width: 3.6rem;
+  height: 3.6rem;
+  z-index: 1;
+  border-radius: 50%;
+  color: var(--text-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.embla__button:disabled {
+  color: var(--detail-high-contrast);
+}
+.embla__button__svg {
+  width: 35%;
+  height: 35%;
+}
+.embla__dots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  margin-right: calc((2.6rem - 1.4rem) / 2 * -1);
+  gap: 0.3rem;
+}
+.embla__dot {
+  -webkit-tap-highlight-color: rgba(var(--text-high-contrast-rgb-value), 0.5);
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: white;
+  touch-action: manipulation;
+  display: inline-flex;
+  text-decoration: none;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  width: 1rem;
+  height: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.embla__dot--selected{
+  background-color: black;
+  border: 2px solid white;
+}
+.embla__dot:after {
+  box-shadow: inset 0 0 0 0.2rem var(--detail-medium-contrast);
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  content: '';
+}
+.embla__dot--selected:after {
+  box-shadow: inset 0 0 0 0.2rem var(--text-body);
+}
+.embla__slide__number {
+  backface-visibility: hidden;
+  transition: transform 0.3s ease;
+}
+
+/* iOS Picker */
+.embla__ios-picker {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  min-width: 50%;
+  max-width: 100px;
+  justify-content: center;
+  line-height: 1;
+  font-size: 0.8rem;
+}
+.embla__ios-picker__scene {
+  min-width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  touch-action: pan-x;
+}
+.embla__ios-picker__viewport {
+  height: 32px;
+  width: 100%;
+  perspective: 1000px;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -khtml-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.embla__ios-picker__viewport--perspective-left {
+  perspective-origin: calc(50% + 130px) 50%;
+  transform: translateX(27px);
+}
+.embla__ios-picker__viewport--perspective-right {
+  perspective-origin: calc(50% - 130px) 50%;
+  transform: translateX(-27px);
+}
+.embla__ios-picker__container {
+  height: 100%;
+  width: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.embla__ios-picker__slide {
+  width: 100%;
+  height: 56px;
+  font-size: 16px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backface-visibility: hidden;
+  opacity: 0;
+}
+.embla__ios-picker__label {
+  font-weight: 700;
+  transform: translateX(-55px);
+  pointer-events: none;
+}
+
+/* Autoplay */
+.embla__play {
+  -webkit-tap-highlight-color: rgba(var(--text-high-contrast-rgb-value), 0.5);
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: transparent;
+  touch-action: manipulation;
+  display: inline-flex;
+  text-decoration: none;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  box-shadow: inset 0 0 0 0.2rem var(--detail-medium-contrast);
+  border-radius: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: flex-end;
+  color: var(--text-body);
+  font-weight: 700;
+  font-size: 1.4rem;
+  padding: 0 2.4rem;
+  min-width: 8.4rem;
+}
+.embla__progress {
+  border-radius: 1.8rem;
+  box-shadow: inset 0 0 0 0.2rem var(--detail-medium-contrast);
+  background-color: var(--background-site);
+  position: relative;
+  height: 0.6rem;
+  justify-self: flex-end;
+  align-self: center;
+  width: 13rem;
+  max-width: 90%;
+  overflow: hidden;
+}
+.embla__progress__bar {
+  background-color: var(--primary);
+  position: absolute;
+  width: 100%;
+  top: 0;
+  bottom: 0;
+  left: -100%;
+}
+.embla__controls {
+  grid-template-columns: auto 1fr auto;
+}
+.embla__progress {
+  justify-self: center;
+  transition: opacity 0.3s ease-in-out;
+  width: 8rem;
+}
+.embla__progress--hidden {
+  opacity: 0;
+}
+.embla__progress__bar {
+  animation-name: autoplay-progress;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+}
+.embla__progress--hidden .embla__progress__bar {
+  animation-play-state: paused;
+}
+@keyframes autoplay-progress {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(100%, 0, 0);
+  }
+}
+
+.hero-slider {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+}
+
+.hero-slider__viewport {
+  overflow: hidden;
+  height: 100%;
+}
+
+.hero-slider__container {
+  display: flex;
+  height: 100%;
+}
+
+.hero-slider__slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+/* Add responsive breakpoints */
+@media (max-width: 768px) {
+  .embla {
+    --slide-size: 80%;
+  }
+  
+  .embla__controls {
+    flex-wrap: wrap;
+  }
+}
