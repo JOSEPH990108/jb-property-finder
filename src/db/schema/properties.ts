@@ -1,3 +1,4 @@
+// src\db\schema\properties.ts
 /// db/schema/properties.ts
 /// Property-related tables
 import {

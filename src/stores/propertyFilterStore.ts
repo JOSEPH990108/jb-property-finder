@@ -1,89 +1,113 @@
-// src\stores\propertyFilterStore.ts
+// src/stores/propertyFilterStore.ts
 
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { Property } from "@/types/main";
+import { Layout } from "@/types/main";
 
+// --- Sort & View Mode Types ---
 type SortOption = "newest" | "priceAsc" | "priceDesc";
 export type ViewMode = "grid" | "list";
 
+// --- Filter State ---
+// Keys match your Layout API shape, so filtering is easy and type-safe.
 interface Filters {
-  search: string;
-  type: string;
-  category: string;
-  location: string;
+  categoryId: number | ""; // Matches dropdown: number or ""
+  propertyTypeId: number | "";
+  areaId: number | "";
   rooms: number;
   minPrice: number;
   maxPrice: number;
+  search: string;
 }
 
-interface PropertyState {
-  properties: Property[];
-  filtered: Property[];
+/**
+ * LayoutState
+ * -----------
+ * - layouts: raw list from API
+ * - filtered: filtered/sorted results
+ * - filters: active filter values
+ * - sort: current sort option
+ * - view: grid or list mode
+ * - All setter methods for UI control
+ */
+interface LayoutState {
+  layouts: Layout[];
+  filtered: Layout[];
   filters: Filters;
   sort: SortOption;
   view: ViewMode;
-
-  setProperties: (data: Property[]) => void;
+  setLayouts: (data: Layout[]) => void;
   setFilter: <K extends keyof Filters>(key: K, value: Filters[K]) => void;
   setSort: (sort: SortOption) => void;
   setView: (view: ViewMode) => void;
   clearFilters: () => void;
 }
 
-const applyFilters = (props: Property[], f: Filters) => {
-  let out = [...props];
+// --- Pure filtering logic ---
+// Works with your flat API Layout objects.
+const applyFilters = (layouts: Layout[], f: Filters) => {
+  let out = [...layouts];
   if (f.search)
-    out = out.filter((p) =>
-      p.projectName.toLowerCase().includes(f.search.toLowerCase())
+    out = out.filter((l) =>
+      l.projectName?.toLowerCase().includes(f.search.toLowerCase())
     );
-  if (f.type)
-    out = out.filter(
-      (p) => p.propertyType.toLowerCase() === f.type.toLowerCase()
-    );
-  if (f.category)
-    out = out.filter(
-      (p) => p.category.toLowerCase() === f.category.toLowerCase()
-    );
-  if (f.location)
-    out = out.filter(
-      (p) => p.location.toLowerCase() === f.location.toLowerCase()
-    );
-  if (f.rooms) out = out.filter((p) => p.rooms === f.rooms);
-  out = out.filter((p) => p.price >= f.minPrice && p.price <= f.maxPrice);
+  if (f.categoryId)
+    out = out.filter((l) => l.categoryId === Number(f.categoryId));
+  if (f.propertyTypeId)
+    out = out.filter((l) => l.propertyTypeId === Number(f.propertyTypeId));
+  if (f.areaId) out = out.filter((l) => l.areaId === Number(f.areaId));
+  if (f.rooms) out = out.filter((l) => l.bedrooms === f.rooms);
+  out = out.filter(
+    (l) =>
+      Number(l.spaPriceNonBumiMin) >= f.minPrice &&
+      Number(l.spaPriceNonBumiMin) <= f.maxPrice
+  );
   return out;
 };
 
-const applySort = (props: Property[], s: SortOption) => {
+// --- Pure sorting logic ---
+const applySort = (layouts: Layout[], s: SortOption) => {
   switch (s) {
     case "priceAsc":
-      return [...props].sort((a, b) => a.price - b.price);
+      return [...layouts].sort(
+        (a, b) => Number(a.spaPriceNonBumiMin) - Number(b.spaPriceNonBumiMin)
+      );
     case "priceDesc":
-      return [...props].sort((a, b) => b.price - a.price);
+      return [...layouts].sort(
+        (a, b) => Number(b.spaPriceNonBumiMin) - Number(a.spaPriceNonBumiMin)
+      );
     default:
-      return;
+      return layouts; // 'newest' fallback (assumes API order is newest)
   }
 };
 
-export const usePropertyFilterStore = create<PropertyState>()(
+/**
+ * usePropertyFilterStore
+ * ----------------------
+ * Zustand store for property filtering/sorting.
+ * - Pure, side-effect-free filters and sorters.
+ * - All UI state handled in one place.
+ * - Devtools integration for debugging.
+ */
+export const usePropertyFilterStore = create<LayoutState>()(
   devtools((set) => ({
-    properties: [],
+    layouts: [],
     filtered: [],
     filters: {
-      search: "",
-      type: "",
-      category: "",
-      location: "",
+      categoryId: "",
+      propertyTypeId: "",
+      areaId: "",
       rooms: 0,
       minPrice: 50000,
       maxPrice: 1000000,
+      search: "",
     },
     sort: "newest",
     view: "grid",
 
-    setProperties: (data) =>
+    setLayouts: (data) =>
       set(() => ({
-        properties: data,
+        layouts: data,
         filtered: applySort(data, "newest"),
       })),
 
@@ -91,7 +115,7 @@ export const usePropertyFilterStore = create<PropertyState>()(
       set((state) => {
         const filters = { ...state.filters, [key]: value } as Filters;
         const filtered = applySort(
-          applyFilters(state.properties, filters),
+          applyFilters(state.layouts, filters),
           state.sort
         );
         return { filters, filtered };
@@ -108,16 +132,16 @@ export const usePropertyFilterStore = create<PropertyState>()(
     clearFilters: () =>
       set((state) => {
         const filters: Filters = {
-          search: "",
-          type: "",
-          category: "",
-          location: "",
+          categoryId: "",
+          propertyTypeId: "",
+          areaId: "",
           rooms: 0,
           minPrice: 50000,
           maxPrice: 1000000,
+          search: "",
         };
         const filtered = applySort(
-          applyFilters(state.properties, filters),
+          applyFilters(state.layouts, filters),
           state.sort
         );
         return { filters, filtered };

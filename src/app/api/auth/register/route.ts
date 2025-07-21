@@ -1,5 +1,18 @@
 // src\app\api\auth\register\route.ts
 
+/**
+ * Register API Route
+ * ------------------
+ * POST: Registers a new user (email or phone), after OTP verification.
+ * - Validates input and OTP
+ * - Checks for duplicate users
+ * - Hashes password
+ * - Creates user and marks OTP as used (transactional)
+ * - Logs registration as loginHistory
+ * - Starts session (cookie)
+ * - Returns sanitized user object
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -12,17 +25,18 @@ import { sanitizeUser } from "@/lib/auth/index";
 import { withApiAuth } from "@/lib/api-utils";
 import bcrypt from "bcryptjs";
 
-// 2. This is now a local 'handler' function.
-//    The rate limiting and top-level try/catch are gone.
 async function handler(request: NextRequest) {
+  // --- 1. Extract IP and parse input ---
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     request.headers.get("x-real-ip") ??
-    "127.0.0.1"; // fallback
+    "127.0.0.1";
   const body = await request.json();
   const data = registerSchema.parse(body);
 
+  // --- 2. Run registration logic in a DB transaction ---
   const result = await db.transaction(async (tx) => {
+    // --- 2a. Find & validate OTP token ---
     const foundOtp = await tx.query.otps.findFirst({
       where: eq(otps.verificationId, data.verificationToken),
     });
@@ -38,6 +52,7 @@ async function handler(request: NextRequest) {
       throw new AppError("Verification token mismatch.", 400);
     }
 
+    // --- 2b. Ensure user is not already registered ---
     const existingUser = await tx.query.users.findFirst({
       where: eq(
         data.method === "email" ? users.email : users.phone,
@@ -51,6 +66,7 @@ async function handler(request: NextRequest) {
       );
     }
 
+    // --- 2c. Hash password and create new user ---
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const [newUser] = await tx
       .insert(users)
@@ -65,13 +81,15 @@ async function handler(request: NextRequest) {
         lastLogin: new Date(),
       })
       .returning();
-
     if (!newUser) throw new AppError("Failed to create user.", 500);
 
+    // --- 2d. Mark OTP as used ---
     await tx
       .update(otps)
       .set({ verified: true })
       .where(eq(otps.verificationId, data.verificationToken));
+
+    // --- 2e. Log this registration/login event ---
     await tx.insert(loginHistories).values({
       userId: newUser.id,
       ipAddress: ip,
@@ -82,10 +100,11 @@ async function handler(request: NextRequest) {
     return newUser;
   });
 
+  // --- 3. Start session & return sanitized user object ---
   await createSession(result.id);
   const safeUser = sanitizeUser(result);
   return NextResponse.json({ user: safeUser });
 }
 
-// 3. Export the wrapped handler.
+// Only POST supported, with API auth wrapper
 export const POST = withApiAuth(handler);

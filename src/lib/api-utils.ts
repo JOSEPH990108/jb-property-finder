@@ -1,16 +1,22 @@
-// src\lib\api-utils.ts
+// src/lib/api-utils.ts
+
+/**
+ * API Route Utils
+ * ---------------
+ * Exports a HOC for Next.js API routes:
+ * - Rate limits per IP (using global ratelimit helper)
+ * - Centralizes error handling (so all responses are consistent)
+ * - Easy to wrap any handler, returns NextResponse
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { ratelimit } from "./rate-limit";
 import { AppError, handleError } from "./error-handler";
 
 /**
- * This is our custom type definition. It's not imported.
- * We are defining a "shape" for a function.
- * This shape says the function:
- * 1. Must accept a `NextRequest` object as its first argument.
- * 2. Can accept any other arguments after that (...args).
- * 3. Must return a Promise that resolves to a NextResponse.
- * This perfectly describes all of our Next.js API route handlers.
+ * Type for any API handler:
+ * - Accepts (NextRequest, ...args)
+ * - Returns Promise<NextResponse>
  */
 type ApiHandler = (
   request: NextRequest,
@@ -18,18 +24,24 @@ type ApiHandler = (
 ) => Promise<NextResponse>;
 
 /**
- * @description A higher-order function to wrap API handlers with rate limiting and centralized error handling.
- * @param handler The API route handler function to wrap.
- * @returns A new handler function that includes rate limiting and error handling.
+ * Wraps your API handler with:
+ * 1. IP-based rate limiting (429 with message if exceeded)
+ * 2. Central error handler (catches everything, never exposes stack traces)
+ * 3. Returns real HTTP codes (not just 200 + error in JSON)
+ *
+ * Usage:
+ *   export const POST = withApiAuth(handler)
  */
 export function withApiAuth(handler: ApiHandler): ApiHandler {
   return async (request: NextRequest, ...args: any[]) => {
     try {
-      // --- Rate Limiting ---
+      // --- 1. Determine request IP (proxy safe) ---
       const ip =
         request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
         request.headers.get("x-real-ip") ??
-        "127.0.0.1"; // fallback
+        "127.0.0.1"; // fallback for local/dev
+
+      // --- 2. Rate limit using IP ---
       const { success, limit, remaining, reset } = await ratelimit.limit(ip);
 
       if (!success) {
@@ -37,9 +49,9 @@ export function withApiAuth(handler: ApiHandler): ApiHandler {
         const resetDate = new Date(reset);
         const retryAfter = Math.ceil((resetDate.getTime() - now) / 1000);
 
-        // You can add a 'Retry-After' header to be more compliant with HTTP specs
+        // Optionally add Retry-After header for clients/bots
         console.warn(
-          `Rate limit exceeded for IP: ${ip}. Remaining: ${remaining}. Retrying after ${retryAfter}s.`
+          `🚨 Rate limit exceeded for IP: ${ip}. Remaining: ${remaining}. Retry after ${retryAfter}s.`
         );
 
         throw new AppError(
@@ -48,10 +60,10 @@ export function withApiAuth(handler: ApiHandler): ApiHandler {
         );
       }
 
-      // If rate limit check passes, execute the original handler
+      // --- 3. Handler runs only if allowed ---
       return await handler(request, ...args);
     } catch (error) {
-      // Use the centralized error handler for any exception
+      // Central error handler: never leaks sensitive info!
       return handleError(error);
     }
   };

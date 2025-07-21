@@ -1,3 +1,4 @@
+// src\components\utils\PorpertyQuiz.tsx
 'use client';
 
 import { useQuizStore } from '@/stores/quizStore';

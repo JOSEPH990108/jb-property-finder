@@ -1,10 +1,18 @@
-// src\components\form\AnimatedFieldError.tsx
+// src/components/form/AnimatedFieldError.tsx
+
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 
+/**
+ * AnimatedFieldError
+ * ------------------
+ * Animates in/out a field error message.
+ * - Uses framer-motion for smooth fade/slide
+ * - Accessibility: role="alert" for screen readers
+ */
 interface AnimatedFieldErrorProps {
-  message?: string;
+  message?: string; // The error message to display (if any)
 }
 
 export default function AnimatedFieldError({

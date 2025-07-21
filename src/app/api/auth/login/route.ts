@@ -1,8 +1,20 @@
 // src\app\api\auth\login\route.ts
+
+/**
+ * Login API Route
+ * ---------------
+ * POST: Handles user login by email/phone + password.
+ * Features:
+ *   - IP-based login logging
+ *   - Lockout on too many failed attempts
+ *   - Password validation (bcrypt)
+ *   - User session creation (DB + cookie)
+ *   - Only returns sanitized user object
+ */
+
 import { NextResponse } from "next/server";
 import { getLoginSchema } from "@/lib/validation";
 import { createSession } from "@/lib/auth/session";
-import { ratelimit } from "@/lib/rate-limit";
 import { db } from "@/db";
 import { eq, or } from "drizzle-orm";
 import { users as userTable, loginHistories } from "@/db/schema/core";
@@ -13,17 +25,17 @@ import { sanitizeUser } from "@/lib/auth";
 import { withApiAuth } from "@/lib/api-utils";
 
 const MAX_FAILED_ATTEMPTS = 3;
-const LOCKOUT_DURATION = 10 * 60 * 1000; // 10 minutes
+const LOCKOUT_DURATION = 10 * 60 * 1000; // 10 min in ms
 
 async function handler(request: Request) {
   try {
-    // 1. Rate limit based on IP address
+    // --- 1. Get User IP for rate limiting/logging ---
     const ip =
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
       request.headers.get("x-real-ip") ??
-      "127.0.0.1"; // fallback
+      "127.0.0.1"; // fallback if missing
 
-    // 2. Parse and validate login payload
+    // --- 2. Parse & validate input ---
     const body = await request.json();
     const { method, identifier, password } = body;
     const result = getLoginSchema(method).safeParse({ identifier, password });
@@ -31,10 +43,9 @@ async function handler(request: Request) {
     if (!result.success) {
       throw new AppError(result.error.issues[0].message, 400);
     }
-
     const { identifier: loginIdentifier } = result.data;
 
-    // 3. Find user by email or phone
+    // --- 3. Find user by email or phone ---
     const foundUser: User | undefined = await db.query.users.findFirst({
       where: or(
         eq(userTable.email, loginIdentifier),
@@ -46,7 +57,7 @@ async function handler(request: Request) {
       throw new AppError("Invalid credentials", 400);
     }
 
-    // 4. Check lockout
+    // --- 4. Check lockout (too many failed attempts) ---
     if (foundUser.lockedUntil && new Date(foundUser.lockedUntil) > new Date()) {
       const lockedUntilTime = new Date(
         foundUser.lockedUntil
@@ -57,10 +68,11 @@ async function handler(request: Request) {
       );
     }
 
-    // 5. Password check
+    // --- 5. Check password hash (bcrypt) ---
     const isPasswordValid = await bcrypt.compare(password, foundUser.password);
 
     if (!isPasswordValid) {
+      // Update failed attempt count + lockout if over limit
       const failedAttempts = (foundUser.failedAttempts || 0) + 1;
       const isLocked = failedAttempts >= MAX_FAILED_ATTEMPTS;
 
@@ -75,12 +87,14 @@ async function handler(request: Request) {
         .where(eq(userTable.id, foundUser.id));
 
       const errorMessage = isLocked
-        ? `Too many failed attempts. Your account has been temporarily locked for ${LOCKOUT_DURATION} minutes.`
+        ? `Too many failed attempts. Your account has been temporarily locked for ${
+            LOCKOUT_DURATION / 60000
+          } minutes.`
         : "Invalid credentials. Please check your email/phone and password.";
       throw new AppError(errorMessage, 401);
     }
 
-    // 6. Login success: reset lockout data
+    // --- 6. Success! Reset lockout & update last login ---
     await db
       .update(userTable)
       .set({
@@ -90,27 +104,26 @@ async function handler(request: Request) {
       })
       .where(eq(userTable.id, foundUser.id));
 
-    // 7. Create user session (DB + cookie)
+    // --- 7. Create user session (DB + cookie/etc) ---
     await createSession(foundUser.id);
 
-    // 8. Log login attempt
+    // --- 8. Log the login event (for security/audit) ---
     const newLogin: NewLoginHistory = {
       userId: foundUser.id,
       ipAddress: ip,
       userAgent: request.headers.get("user-agent") ?? null,
-      country: request.headers.get("x-vercel-ip-country") ?? null, // Optional: enrich with GeoIP
-      createdAt: new Date(), // if required by schema
+      country: request.headers.get("x-vercel-ip-country") ?? null, // if available
+      createdAt: new Date(),
     };
-
     await db.insert(loginHistories).values(newLogin);
 
-    // 9. Return the sanitized user data to the client
+    // --- 9. Return only sanitized user object ---
     const safeUserData = sanitizeUser(foundUser);
-
     return NextResponse.json({ user: safeUserData });
   } catch (error) {
     return handleError(error);
   }
 }
 
+// POST only, protected by API auth middleware
 export const POST = withApiAuth(handler);

@@ -1,4 +1,13 @@
-// src\hooks\useLoginForm.ts
+// src/hooks/useLoginForm.ts
+
+/**
+ * useLoginForm Hook
+ * -----------------
+ * Handles all login form logic: field state, validation (live + debounced), mode switch, and submit.
+ * Designed for both email and phone login flows.
+ * Debounced validation = instant UX, no spam API calls.
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
@@ -13,42 +22,36 @@ import { toast } from "sonner";
 import { ZodError } from "zod";
 import { AuthMethod } from "@/types/main";
 
-/**
- * @description Custom hook to manage the entire logic for the login form.
- * It handles state, validation (with debouncing), and submission.
- */
 export function useLoginForm() {
   const router = useRouter();
   const { login, isLoading } = useAuthStore();
 
-  // Form state
+  // --- Form state ---
   const [method, setMethod] = useState<AuthMethod>("email");
   const [identifier, setIdentifier] = useState("");
   const [countryCode, setCountryCode] = useState("+60");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Debounced value for live validation to avoid excessive checks
+  // --- Debounced identifier for validation (no jitter) ---
   const [debouncedIdentifier] = useDebounce(identifier, 500);
 
-  // Error state
+  // --- Error state (field + global) ---
   const [formError, setFormError] = useState<string>("");
   const [fieldErrors, setFieldErrors] = useState<{
     identifier?: string;
     password?: string;
   }>({});
 
-  /**
-   * @description Resets all form errors.
-   */
+  /** Resets all field/global errors. */
   const resetFormErrors = useCallback(() => {
     setFieldErrors({});
     setFormError("");
   }, []);
 
   /**
-   * @description Switches the authentication method between 'email' and 'phone'.
-   * Resets identifier and errors on switch.
+   * Switch between 'email' and 'phone' login methods.
+   * Clears identifier and errors on change.
    */
   const handleMethodChange = (newMethod: AuthMethod) => {
     if (method === newMethod) return;
@@ -58,8 +61,9 @@ export function useLoginForm() {
   };
 
   /**
-   * @description Live validation for the identifier field (email or phone).
-   * Uses the debounced value to prevent validation on every keystroke.
+   * Debounced identifier validation (email/phone).
+   * - Runs after 500ms pause for smooth UX.
+   * - Phone uses country code utils.
    */
   useEffect(() => {
     if (!debouncedIdentifier) {
@@ -70,21 +74,15 @@ export function useLoginForm() {
     let error: string | undefined;
     if (method === "email") {
       const result = emailSchema.safeParse(debouncedIdentifier);
-      if (!result.success) {
-        error = "Invalid email format";
-      }
+      if (!result.success) error = "Invalid email format";
     } else {
       const result = validateMobileByCountry(debouncedIdentifier, countryCode);
-      if (!result.isValid) {
-        error = result.reason;
-      }
+      if (!result.isValid) error = result.reason;
     }
     setFieldErrors((prev) => ({ ...prev, identifier: error }));
   }, [debouncedIdentifier, method, countryCode]);
 
-  /**
-   * @description Live validation for the password field.
-   */
+  /** Live validation for password field, updates error as user types. */
   useEffect(() => {
     if (!password) {
       setFieldErrors((prev) => ({ ...prev, password: undefined }));
@@ -99,14 +97,16 @@ export function useLoginForm() {
   }, [password, method]);
 
   /**
-   * @description Handles the form submission process.
-   * Performs final validation and calls the login action from the auth store.
+   * Handles form submit:
+   * - Final validation (schema, phone format)
+   * - Calls store login (which manages API + loading)
+   * - Handles redirect and errors
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     resetFormErrors();
 
-    // Final validation before submission
+    // Final format for phone before submit
     const loginIdentifier =
       method === "phone"
         ? validateMobileByCountry(identifier, countryCode).formatted
@@ -130,11 +130,11 @@ export function useLoginForm() {
     if (!validationResult.success) {
       const errors = extractFieldErrors(validationResult.error as ZodError);
       setFieldErrors(errors);
-      // Show toast for the first error found
       toast.error(Object.values(errors)[0]);
       return;
     }
 
+    // Call global auth store's login (handles API and error toast)
     const { success } = await login(
       validationResult.data.identifier,
       validationResult.data.password,
@@ -145,14 +145,12 @@ export function useLoginForm() {
       toast.success("Login successful! Redirecting...");
       router.push("/");
     } else {
-      // The store's login function already shows an error toast.
-      // You could set a form-specific error here if needed.
       setFormError("Invalid credentials. Please try again.");
     }
   };
 
+  // --- Expose all state & handlers for component use ---
   return {
-    // State
     method,
     identifier,
     password,
@@ -161,7 +159,6 @@ export function useLoginForm() {
     isLoading,
     formError,
     fieldErrors,
-    // Setters & Handlers
     setIdentifier,
     setPassword,
     setCountryCode,

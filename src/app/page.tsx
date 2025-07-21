@@ -1,6 +1,7 @@
 // src\app\page.tsx
 "use client";
 
+import { useEffect } from "react";
 import LoanCalculator from "@/components/loan/LoanCalculator";
 import LoanStatistic from "@/components/loan/LoanStatistic";
 import LoanSummary from "@/components/loan/LoanSummary";
@@ -8,123 +9,33 @@ import LoanAmortizationTable from "@/components/loan/LoanAmortizationTable";
 import Section from "@/components/layout/Section";
 import CashRequired from "@/components/loan/CashRequired";
 import HeroSlider from "@/components/utils/HeroSlider";
-import PropertyCardGallery from "@/components/utils/PropertyCardGallery";
-import { Property } from "@/types/main";
 import BaseEmblaCarousel from "@/components/emblaCarousel/EmblaBaseCarousel";
-import useDeviceDetect from "@/hooks/useDeviceDetect";
+import { useDeviceDetect } from "@/hooks/useDeviceDetect";
 import { useHydrated } from "@/hooks/useHydrated";
 import { useLeadFormStore } from "@/stores/leadFormStore";
+import { usePropertyStore } from "@/stores/propertyStore";
+import { usePropertyFilterStore } from "@/stores/propertyFilterStore";
+import ProjectCard from "@/components/utils/ProjectCard";
+import LayoutCard from "@/components/utils/ProjectLayoutCard";
 
 export default function HomePage() {
   const isMobile = useDeviceDetect();
   const hydrated = useHydrated();
   const openLeadForm = useLeadFormStore((state) => state.openForm);
-  const slides = [
-    {
-      id: 1,
-      imageUrl: "/images/home.jpg",
-      heading: "Find Your Dream Property in Johor Bahru",
-      subheading:
-        "Discover new projects, sub-sale, and rental listings all in one place.",
-      ctaText: "Explore Projects",
-      ctaLink: "/projects",
-      alt: "Modern residential property in Johor Bahru",
-    },
-    {
-      id: 2,
-      imageUrl: "/images/living-room.jpg",
-      heading: "Live Near Everything You Love",
-      subheading:
-        "Shopping, schools, and serene neighborhoods just minutes away.",
-      ctaText: "View Listings",
-      ctaLink: "/listings",
-      alt: "Spacious living room interior",
-    },
-    {
-      id: 3,
-      imageUrl: "/images/apartment-jb.jpg",
-      heading: "Invest in Property with Confidence",
-      subheading: "We help you choose the right one for your future.",
-      ctaText: "Get Started",
-      ctaLink: "/contact",
-      alt: "Modern apartment building in Johor Bahru",
-    },
-  ];
-  const propertyData: Property = {
-    id: 1,
-    projectName: "Sky Heights Residence",
-    location: "Taman Sutera Utama, Johor Bahru",
-    price: 850000,
-    sqft: 850,
-    rooms: 3,
-    bathrooms: 2,
-    images: ["/images/home.jpg", "/images/living-room.jpg"],
-    category: "For Sale",
-    status: "Published",
-    propertyType: "Condo",
-    area: "Skudai",
-    listType: "New Launch",
-    dateCompleted: "2023-12-01",
-    tenure: "Freehold",
-    developer: "ABC Developer",
-  };
-  // Sample property data array
-  const propertyList: Property[] = [
-    {
-      id: 1,
-      projectName: "Sky Heights Residence",
-      location: "Taman Sutera Utama, Johor Bahru",
-      price: 850000,
-      sqft: 850,
-      rooms: 3,
-      bathrooms: 2,
-      images: ["/images/home.jpg", "/images/living-room.jpg"],
-      category: "For Sale",
-      status: "Published",
-      propertyType: "Condo",
-      area: "Skudai",
-      listType: "New Launch",
-      dateCompleted: "2023-12-01",
-      tenure: "Freehold",
-      developer: "ABC Developer",
-    },
-    {
-      id: 2,
-      projectName: "Ocean View Villas",
-      location: "Penang Island",
-      price: 1200000,
-      sqft: 1200,
-      rooms: 4,
-      bathrooms: 3,
-      images: ["/images/apartment-jb.jpg", "/images/property-hero.jpg"],
-      category: "For Sale",
-      status: "Featured",
-      propertyType: "Villa",
-      area: "Batu Ferringhi",
-      listType: "Premium",
-      dateCompleted: "2024-06-01",
-      tenure: "Leasehold",
-      developer: "XYZ Properties",
-    },
-    {
-      id: 3,
-      projectName: "Urban Loft Apartments",
-      location: "Kuala Lumpur City Center",
-      price: 650000,
-      sqft: 700,
-      rooms: 2,
-      bathrooms: 2,
-      images: ["/images/living-room.jpg", "/images/apartment-jb.jpg"],
-      category: "For Rent",
-      status: "Published",
-      propertyType: "Apartment",
-      area: "KLCC",
-      listType: "Ready Unit",
-      dateCompleted: "2022-03-15",
-      tenure: "Freehold",
-      developer: "Metro Builders",
-    },
-  ];
+
+  const { projects, allLayouts, fetchProperties } = usePropertyStore();
+  const setLayouts = usePropertyFilterStore((state) => state.setLayouts);
+
+  // Fetch on mount if not already loaded
+  useEffect(() => {
+    if (projects.length === 0) fetchProperties();
+  }, [projects.length, fetchProperties]);
+
+  // Sync layouts into the filter store
+  useEffect(() => {
+    setLayouts(allLayouts);
+  }, [allLayouts, setLayouts]);
+
   return (
     <>
       {/* HERO Section */}
@@ -141,22 +52,28 @@ export default function HomePage() {
           showDots={false}
           pauseAutoplayOnHover
         >
-          {propertyList.map((property) => (
-            <PropertyCardGallery
-              property={property}
-              onApplyClick={() => {
-                // Open lead form modal for this property
-                console.log("Apply for:", property.projectName);
-                openLeadForm();
-              }}
-              onWhatsAppClick={() => {
-                window.open(
-                  `https://wa.me/60123456789?text=Inquiry about ${encodeURIComponent(
-                    property.projectName
-                  )}`
-                );
-              }}
+          {projects.map((project) => (
+            <ProjectCard
+              key={project.projectId || project.id}
+              project={project}
             />
+          ))}
+        </BaseEmblaCarousel>
+      </Section>
+
+      <Section>
+        <BaseEmblaCarousel
+          plugins={["autoplay", "scale"]}
+          options={{ loop: true }}
+          slideHeight="auto"
+          slideSpacing="1 rem"
+          slideSize={hydrated ? (isMobile ? "100%" : "55%") : "55%"}
+          showArrows={false}
+          showDots={false}
+          pauseAutoplayOnHover
+        >
+          {allLayouts.map((layout) => (
+            <LayoutCard key={layout.id} layout={layout} />
           ))}
         </BaseEmblaCarousel>
       </Section>
@@ -188,10 +105,6 @@ export default function HomePage() {
             <LoanAmortizationTable />
           </div>
         </div>
-      </Section>
-
-      <Section>
-        <PropertyCardGallery property={propertyData} />
       </Section>
 
       {/* PROPERTY CAROUSEL Section */}

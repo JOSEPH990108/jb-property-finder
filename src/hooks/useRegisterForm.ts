@@ -1,5 +1,15 @@
-// src\hooks\useRegisterForm.ts
+// src/hooks/useRegisterForm.ts
 "use client";
+
+/**
+ * useRegisterForm Hook
+ * --------------------
+ * Handles all multi-step registration form logic.
+ * - Step 1: Enter identifier (email/phone) & send OTP
+ * - Step 2: Enter/verify OTP
+ * - Step 3: Enter user details & complete registration
+ * Manages validation, debouncing, timers, and all async actions.
+ */
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -15,27 +25,24 @@ import { toast } from "sonner";
 import { ZodError } from "zod";
 import { AuthMethod } from "@/types/main";
 
-/**
- * @description Custom hook to manage the entire logic for the multi-step registration form.
- */
 export function useRegisterForm() {
   const router = useRouter();
   const { sendOtp, verifyOtp, register, isLoading } = useAuthStore();
 
-  // Form state
+  // --- Multi-step state ---
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [method, setMethod] = useState<AuthMethod>("email");
 
-  // Step 1 state
+  // --- Step 1: Identifier entry ---
   const [identifier, setIdentifier] = useState("");
   const [countryCode, setCountryCode] = useState("+60");
   const [debouncedIdentifier] = useDebounce(identifier, 500);
 
-  // Step 2 state
+  // --- Step 2: OTP verification ---
   const [otp, setOtp] = useState("");
   const [timer, setTimer] = useState(0);
 
-  // Step 3 state
+  // --- Step 3: User details & password ---
   const [verificationToken, setVerificationToken] = useState<string | null>(
     null
   );
@@ -45,12 +52,12 @@ export function useRegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Error state
+  // --- Field errors for UI feedback ---
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<string, string>>
   >({});
 
-  // Timer effect
+  // --- Timer for OTP resend cooldown (runs every second when active) ---
   useEffect(() => {
     if (timer > 0) {
       const id = setInterval(() => setTimer((t) => t - 1), 1000);
@@ -58,12 +65,13 @@ export function useRegisterForm() {
     }
   }, [timer]);
 
+  // --- Helper: Get valid identifier (format phone if needed) ---
   const getValidIdentifier = useCallback(() => {
     if (method === "email") return identifier;
     return validateMobileByCountry(identifier, countryCode).formatted;
   }, [method, identifier, countryCode]);
 
-  // Live validation for identifier
+  // --- Live validation for identifier field (debounced for UX) ---
   useEffect(() => {
     if (!debouncedIdentifier) {
       setFieldErrors((prev) => ({ ...prev, identifier: undefined }));
@@ -77,6 +85,7 @@ export function useRegisterForm() {
     }));
   }, [debouncedIdentifier, method]);
 
+  // --- Step 1: Send OTP handler ---
   const handleSendOtp = async () => {
     const validIdentifier = getValidIdentifier();
     if (!validIdentifier) {
@@ -87,17 +96,18 @@ export function useRegisterForm() {
     const res = await sendOtp(validIdentifier, method);
     if (res.success) {
       setStep(2);
-      setTimer(60); // Start 60-second timer
+      setTimer(60); // 60-second cooldown before resend allowed
     }
   };
 
+  // --- Step 2: Verify OTP handler ---
   const handleVerifyOtp = async () => {
     if (otp.length !== 6) {
       toast.error("Please enter the 6-digit OTP.");
       return;
     }
     const validIdentifier = getValidIdentifier();
-    if (!validIdentifier) return; // Should not happen
+    if (!validIdentifier) return;
 
     const res = await verifyOtp(otp, validIdentifier);
     if (res.success && res.verificationToken) {
@@ -107,6 +117,7 @@ export function useRegisterForm() {
     }
   };
 
+  // --- Step 3: Complete registration handler ---
   const handleRegister = async () => {
     setFieldErrors({});
     const validIdentifier = getValidIdentifier();
@@ -144,6 +155,7 @@ export function useRegisterForm() {
     }
   };
 
+  // --- Expose state & handlers for the registration UI ---
   return {
     // State
     step,

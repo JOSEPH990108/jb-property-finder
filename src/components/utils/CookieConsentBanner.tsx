@@ -1,3 +1,4 @@
+// src\components\utils\CookieConsentBanner.tsx
 'use client'
 
 import { useEffect } from 'react'

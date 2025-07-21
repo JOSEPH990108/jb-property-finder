@@ -1,4 +1,14 @@
-// src\app\api\auth\password-reset\route.ts
+// src/app/api/auth/password-reset/route.ts
+
+/**
+ * Password Reset API Route
+ * ------------------------
+ * POST: Handles password reset flow (with token).
+ * - Validates new password
+ * - Verifies token is legit, unused, and not expired
+ * - Updates password and marks token as used (transactional)
+ * - Returns { success: true } or a handled error
+ */
 
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
@@ -12,13 +22,13 @@ export async function POST(request: Request) {
   try {
     const { token, newPassword } = await request.json();
 
-    // 1. Validate password
+    // --- 1. Validate new password against schema (zod/etc) ---
     const validation = passwordSchema.safeParse(newPassword);
     if (!validation.success) {
       throw new AppError(validation.error.issues[0].message, 400);
     }
 
-    // 2. Find the reset token
+    // --- 2. Find valid, unused, and non-expired token ---
     const tokens = await db
       .select()
       .from(passwordResetTokens)
@@ -36,10 +46,10 @@ export async function POST(request: Request) {
       throw new AppError("Invalid or expired token", 400);
     }
 
-    // 3. Hash password
+    // --- 3. Hash new password ---
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // 4. Update user password and mark token as used (transaction)
+    // --- 4. Atomic update: set password & mark token used ---
     await db.transaction(async (tx) => {
       await tx
         .update(users)
@@ -52,8 +62,10 @@ export async function POST(request: Request) {
         .where(eq(passwordResetTokens.id, resetToken.id));
     });
 
+    // --- 5. Respond with success ---
     return NextResponse.json({ success: true });
   } catch (error) {
+    // Handles and logs error, sends user-friendly message
     return handleError(error);
   }
 }

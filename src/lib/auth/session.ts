@@ -1,17 +1,32 @@
-// src\lib\auth\session.ts
+// src/lib/auth/session.ts
 "use server";
 
+/**
+ * Session Management Utils
+ * ------------------------
+ * Handles session creation, retrieval, and cleanup for both credentials and social logins.
+ * - Creates HTTP-only cookie for user session
+ * - Checks both custom cookie & better-auth (social/OAuth)
+ * - Cleans up expired sessions in DB
+ */
+
 import { cookies } from "next/headers";
-import { createAuthClient } from "better-auth/dist/client";
+import { createAuthClient } from "better-auth/client";
 import { nanoid } from "nanoid";
 import { eq, lt } from "drizzle-orm";
 import { db } from "@/db";
 import { sessions } from "@/db/schema/core";
 import type { User } from "@/types/db";
+
+/**
+ * Creates a new session for a user.
+ * - Stores token in DB
+ * - Sets HTTP-only session cookie (7 days)
+ */
 export const createSession = async (userId: string) => {
   try {
     const sessionId = nanoid(); // unique DB id
-    const sessionToken = nanoid(); // used in cookie
+    const sessionToken = nanoid(); // cookie value
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     await db.insert(sessions).values({
@@ -39,9 +54,15 @@ export const createSession = async (userId: string) => {
   }
 };
 
+/**
+ * Gets current session for user, supports:
+ * - better-auth (OAuth/social): checked first
+ * - custom cookie (credentials): checked next
+ * Returns: { source: "oauth" | "credentials", user }
+ */
 export const getSession = async () => {
   try {
-    // 1. Check for the VIP Pass from better-auth (Door #2)
+    // 1. VIP pass: better-auth social session (OAuth)
     const authClient = createAuthClient();
     const betterAuthSession = await authClient.getSession();
     const sessionData = betterAuthSession?.data;
@@ -53,7 +74,7 @@ export const getSession = async () => {
       };
     }
 
-    // 2. If no VIP pass, check for your own session cookie (Door #1)
+    // 2. Custom session cookie (credentials login)
     const token = (await cookies()).get("session")?.value;
     if (!token) return null;
 
@@ -76,6 +97,10 @@ export const getSession = async () => {
   }
 };
 
+/**
+ * Deletes the current session (credentials).
+ * - Removes from DB and deletes cookie
+ */
 export const deleteSession = async () => {
   try {
     const token = (await cookies()).get("session")?.value;
@@ -88,7 +113,10 @@ export const deleteSession = async () => {
   }
 };
 
-// Optional: Clean up expired sessions (can be run periodically or in a job)
+/**
+ * Cleans up expired sessions from the DB.
+ * - Call periodically as a job/task (not required on every request)
+ */
 export const cleanExpiredSessions = async () => {
   try {
     await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));

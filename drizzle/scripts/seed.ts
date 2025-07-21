@@ -1,3 +1,9 @@
+// Seeding Script for Properties Schema
+// -----------------------------------
+// Populates lookup tables with basic area/category/type/status/feature data.
+// Run this after running initial migrations.
+// Safe for idempotent (multi) runs.
+
 import "dotenv/config";
 console.log("✅ DATABASE_URL:", process.env.DATABASE_URL);
 
@@ -14,16 +20,17 @@ import {
   projectTypes,
 } from "@/db/schema/properties";
 
-// Helper: Generate slug from name
+// --- Helper: Converts "Name String" => "name-string" (slug) ---
 function toSlug(name: string) {
   return name
     .toLowerCase()
-    .replace(/[^\w\s]/g, "")
-    .replace(/\s+/g, "-");
+    .replace(/[^\w\s]/g, "") // Remove non-word chars
+    .replace(/\s+/g, "-"); // Spaces to dashes
 }
 
 async function main() {
-  // === 1. States ===
+  // ========== 1. Seed States ==========
+  // Only Johor and KL for now—expand as needed.
   const [johor] = await db
     .insert(states)
     .values({ name: "Johor" })
@@ -36,7 +43,8 @@ async function main() {
     .onConflictDoNothing()
     .returning();
 
-  // === 2. Area Categories ===
+  // ========== 2. Seed Area Categories ==========
+  // Area categories for grouping city neighborhoods.
   const categoryNames = [
     "Iskandar Puteri",
     "Skudai",
@@ -51,11 +59,13 @@ async function main() {
     .values(categoryNames.map((name) => ({ name })))
     .onConflictDoNothing();
 
+  // Fetch area category IDs for FK mapping below
   const areaCategoryRows = await db.select().from(areaCategories);
   const getCatId = (name: string): number | null =>
     areaCategoryRows.find((c) => c.name === name)?.id ?? null;
 
-  // === 3. Areas ===
+  // ========== 3. Seed Areas ==========
+  // Map each area category to its specific neighborhoods/areas.
   const areaMap: Record<string, string[]> = {
     "Iskandar Puteri": [
       "Bukit Indah",
@@ -109,9 +119,10 @@ async function main() {
     ],
   };
 
+  // Insert all areas, FKed to category/state. Handles conflicts for reruns.
   for (const [categoryName, areaNames] of Object.entries(areaMap)) {
     const categoryId = getCatId(categoryName);
-    if (!categoryId) continue;
+    if (!categoryId) continue; // Skip if category missing
 
     await db
       .insert(areas)
@@ -126,7 +137,8 @@ async function main() {
       .onConflictDoNothing();
   }
 
-  // === 4. Property Categories ===
+  // ========== 4. Seed Property Categories ==========
+  // E.g. Landed, High-Rise, Others (expand as needed)
   const propertyCategoryNames = ["Landed", "High-Rise", "Others"];
   await db
     .insert(propertyCategories)
@@ -137,14 +149,16 @@ async function main() {
   const getPropertyCategoryId = (name: string): number | null =>
     propertyCategoryRows.find((c) => c.name === name)?.id ?? null;
 
-  // === 5. Tenure Types ===
+  // ========== 5. Seed Tenure Types ==========
+  // Freehold, Leasehold, Malay Reserve, Others
   const tenureTypeNames = ["Freehold", "Leasehold", "Malay Reserve", "Others"];
   await db
     .insert(tenureTypes)
     .values(tenureTypeNames.map((name) => ({ name })))
     .onConflictDoNothing();
 
-  // === 6. Property Types ===
+  // ========== 6. Seed Property Types ==========
+  // Each property type is linked to a category (FK).
   const propertyTypeList = [
     { name: "Single Storey Terrace House", category: "Landed" },
     { name: "Double Storey Terrace House", category: "Landed" },
@@ -159,6 +173,7 @@ async function main() {
     { name: "Condo", category: "High-Rise" },
   ];
 
+  // Validate/attach FKs, skip if no match
   const validPropertyTypes = propertyTypeList
     .map((type) => {
       const catId = getPropertyCategoryId(type.category);
@@ -177,13 +192,15 @@ async function main() {
     .values(validPropertyTypes)
     .onConflictDoNothing();
 
-  // === 7. Project Types ===
+  // ========== 7. Seed Project Types ==========
+  // Project sales channel (New, Sub-sale, Rent)
   await db
     .insert(projectTypes)
     .values(["New", "Sub-sale", "Rent"].map((name) => ({ name })))
     .onConflictDoNothing();
 
-  // === 8. Project Statuses ===
+  // ========== 8. Seed Project Statuses ==========
+  // Lifecycle status for projects
   await db
     .insert(projectStatuses)
     .values(
@@ -193,7 +210,8 @@ async function main() {
     )
     .onConflictDoNothing();
 
-  // === 9. Features ===
+  // ========== 9. Seed Features ==========
+  // List of property/unit features
   const featureNames = [
     "Air-Cond Master",
     "Air-Cond Living Room",
@@ -216,6 +234,7 @@ async function main() {
   console.log("✅ Seeding completed successfully!");
 }
 
+// Entrypoint: run the async main and handle errors loud and clear
 main().catch((e) => {
   console.error("❌ Seeding failed:", e);
   process.exit(1);

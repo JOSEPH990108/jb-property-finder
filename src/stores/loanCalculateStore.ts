@@ -1,6 +1,12 @@
-// src\stores\loanCalculateStore.ts
+// src/stores/loanCalculateStore.ts
+
 import { create } from "zustand";
 
+/**
+ * DeveloperDiscounts
+ * ------------------
+ * Flags for which fees/discounts are absorbed by the developer.
+ */
 type DeveloperDiscounts = {
   spaLegalFee: boolean;
   spaStampDuty: boolean;
@@ -9,16 +15,22 @@ type DeveloperDiscounts = {
   rebate: boolean;
 };
 
+/**
+ * LoanCalculatorState
+ * -------------------
+ * All state for loan calculator, plus setters.
+ */
 type LoanCalculatorState = {
-  spaPrice: number; // SPA (Sale and Purchase Agreement) price
-  downPaymentRate: number; // Down payment in %
-  interestRate: number; // Annual interest rate in %
-  tenureYears: number; // Loan tenure in years
-  sinkRate: number; // sink rate in monthly
-  sqft: number; // Built up (sqft)
-  rebateAmount: number;
+  spaPrice: number; // Sale & Purchase Agreement price (RM)
+  downPaymentRate: number; // Down payment rate (%)
+  interestRate: number; // Annual interest rate (%)
+  tenureYears: number; // Loan tenure (years)
+  sinkRate: number; // Sinking fund rate (monthly)
+  sqft: number; // Built-up area (sqft)
+  rebateAmount: number; // Rebate (RM)
   developerDiscounts: DeveloperDiscounts;
-  // Setters
+
+  // Setters (for UI inputs)
   setSpaPrice: (value: number) => void;
   setDownPaymentRate: (value: number) => void;
   setInterestRate: (value: number) => void;
@@ -29,6 +41,13 @@ type LoanCalculatorState = {
   setDeveloperDiscounts: (value: Partial<DeveloperDiscounts>) => void;
 };
 
+/**
+ * useLoanCalculatorStore
+ * ----------------------
+ * Zustand store for all mortgage/loan state.
+ * - Default values for new calculations
+ * - Setters make updating state super easy from any component.
+ */
 export const useLoanCalculatorStore = create<LoanCalculatorState>(
   (set, get) => ({
     spaPrice: 500000,

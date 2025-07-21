@@ -1,4 +1,5 @@
 // src\components\form\PhoneInputSection.tsx
+
 "use client";
 
 import { Input } from "@/components/ui/input";
@@ -9,26 +10,30 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { AnimatePresence, motion } from "framer-motion";
-import { cn } from "@/lib/utils"; // optional: utility for className merging
+import { cn } from "@/lib/utils"; // Utility for merging classNames (Tailwind + logic)
 import AnimatedFieldError from "./AnimatedFieldError";
 
+// --- Types ---
+// Use clear prop names and descriptions.
 interface PhoneInputSectionProps {
-  phone: string;
-  onPhoneChange: (value: string) => void;
-  countryCode: string;
-  onCountryCodeChange: (value: string) => void;
-  error?: string;
-  useNative?: boolean;
-  disabled?: boolean;
+  phone: string; // The phone number value
+  onPhoneChange: (value: string) => void; // Handler for phone input changes
+  countryCode: string; // The selected country code (e.g. "+60")
+  onCountryCodeChange: (value: string) => void; // Handler for country code change
+  error?: string; // Optional error message (shows under input)
+  useNative?: boolean; // If true, uses <select> instead of shadcn/ui
+  disabled?: boolean; // If true, disables all input fields
 }
 
+// Country code dropdown options (add more as needed)
 const COUNTRY_OPTIONS = [
   { code: "+60", label: "🇲🇾 +60" },
   { code: "+65", label: "🇸🇬 +65" },
   { code: "+66", label: "🇹🇭 +66" },
 ];
 
+// --- Main Component ---
+// Supports shadcn/ui custom Select or native <select> (for mobile/SSR fallback)
 export default function PhoneInputSection({
   phone,
   onPhoneChange,
@@ -42,6 +47,7 @@ export default function PhoneInputSection({
     <div className="flex flex-col gap-1">
       <div className="flex gap-2">
         {useNative ? (
+          // --- Native <select> for country code ---
           <select
             value={countryCode}
             onChange={(e) => onCountryCodeChange(e.target.value)}
@@ -58,6 +64,7 @@ export default function PhoneInputSection({
             ))}
           </select>
         ) : (
+          // --- shadcn/ui Select for custom dropdown ---
           <Select
             value={countryCode}
             onValueChange={onCountryCodeChange}
@@ -76,19 +83,23 @@ export default function PhoneInputSection({
           </Select>
         )}
 
+        {/* --- Phone input field --- */}
         <Input
           type="tel"
           placeholder="Phone"
           value={phone}
           onChange={(e) => onPhoneChange(e.target.value)}
           disabled={disabled}
-          className={`rounded-lg border ${
+          className={cn(
+            "rounded-lg border",
             error
               ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-              : "border-gray-300 dark:border-gray-700 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500"
-          } dark:bg-gray-800`}
+              : "border-gray-300 dark:border-gray-700 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500",
+            "dark:bg-gray-800"
+          )}
         />
       </div>
+      {/* --- Animated error message (if any) --- */}
       <AnimatedFieldError message={error} />
     </div>
   );

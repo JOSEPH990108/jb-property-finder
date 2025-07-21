@@ -1,3 +1,4 @@
+// src\db\schema\projects.ts
 /// db/schema/projects.ts
 /// Project-related tables
 import {

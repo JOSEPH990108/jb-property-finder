@@ -1,3 +1,4 @@
+// src\components\utils\LeadFormModal.tsx
 "use client";
 
 import { useState } from "react";
@@ -21,6 +22,7 @@ import { X } from "lucide-react";
 import SearchableDropdown from "../ui/customize/SearchableDropdown";
 import { useLeadFormStore } from "@/stores/leadFormStore";
 import PhoneInputSection from "../form/PhoneInputSection";
+import { usePropertyStore } from "@/stores/propertyStore";
 
 const leadFormSchema = z
   .object({
@@ -113,11 +115,11 @@ export default function LeadFormModal() {
   const countryMap = { "+60": "MY", "+65": "SG", "+66": "TH" } as const;
   const countryIso = countryMap[countryCode as keyof typeof countryMap];
 
-  const projectOptions = [
-    { name: "Eco Spring", value: "eco-spring" },
-    { name: "Setia Tropika", value: "setia-tropika" },
-    { name: "Horizon Hills", value: "horizon-hills" },
-  ];
+  const propertyStore = usePropertyStore();
+  const projectOptions = propertyStore.projects.map((proj) => ({
+    label: proj.projectName,
+    value: String(proj.id), // or proj.slug if you want slug
+  }));
 
   const validateField = <T extends keyof z.infer<typeof leadFormSchema>>(
     fieldName: T,
@@ -191,7 +193,7 @@ export default function LeadFormModal() {
 
     if (!hasEditedMessage && interest === "appointment") {
       const selectedProjectName =
-        projectOptions.find((p) => p.value === selectedProject)?.name || "";
+        projectOptions.find((p) => p.value === selectedProject)?.label || "";
       setMessage(
         generateMessage({ selectedProjectName, date, hour, minute, ampm })
       );
@@ -294,18 +296,19 @@ export default function LeadFormModal() {
                   {interest === "appointment" && (
                     <div className="w-full sm:w-1/2 flex flex-col">
                       <SearchableDropdown
-                        options={projectOptions.map((p) => ({
-                          label: p.name,
-                          value: p.value,
-                        }))}
+                        options={projectOptions}
                         value={selectedProject}
                         onChange={(val) => {
-                          setSelectedProject(val);
-                          validateField("selectedProject", val);
+                          setSelectedProject(val?.toString() ?? null);
+                          validateField(
+                            "selectedProject",
+                            val?.toString() ?? null
+                          );
                           if (!hasEditedMessage) {
                             const projectName =
-                              projectOptions.find((p) => p.value === val)
-                                ?.name || "";
+                              projectOptions.find(
+                                (p) => String(p.value) === String(val)
+                              )?.label || "";
                             setMessage(
                               generateMessage({
                                 selectedProjectName: projectName,
@@ -351,7 +354,7 @@ export default function LeadFormModal() {
                             const projectName =
                               projectOptions.find(
                                 (p) => p.value === selectedProject
-                              )?.name || "";
+                              )?.label || "";
                             setMessage(
                               generateMessage({
                                 selectedProjectName: projectName,

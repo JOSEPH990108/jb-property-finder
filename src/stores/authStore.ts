@@ -1,17 +1,22 @@
-// src\stores\authStore.ts
+// src/stores/authStore.ts
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { toast } from "sonner";
-import { AuthUser, AuthMethod } from "@/types/main"; // Assuming types are moved to a separate file for clarity
+import { AuthUser, AuthMethod } from "@/types/main";
 
+/**
+ * AuthState
+ * ---------
+ * Shape for all auth state & actions. Types only!
+ */
 type AuthState = {
   user: AuthUser | null;
   isLoading: boolean;
   error: string | null;
   verificationId: string | null;
 
-  // Actions
+  // Auth actions
   fetchSessionUser: () => Promise<void>;
   sendOtp: (
     identifier: string,
@@ -40,11 +45,7 @@ type AuthState = {
 };
 
 /**
- * @description A helper function to wrap API calls, managing loading state and errors.
- * @param set - The Zustand set function.
- * @param apiCall - The async function that performs the API request.
- * @param successMessage - Optional success message for the toast.
- * @returns The result of the API call.
+ * Helper to wrap API calls for consistent loading/error management and toast feedback.
  */
 async function handleApiCall<T>(
   set: (
@@ -73,6 +74,13 @@ async function handleApiCall<T>(
   }
 }
 
+/**
+ * Zustand Auth Store
+ * ------------------
+ * All authentication state/actions in one store.
+ * - Handles: session user, OTP, registration, login, logout, errors, persistence.
+ * - Only the user object is persisted (not loading/errors).
+ */
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -83,6 +91,9 @@ export const useAuthStore = create<AuthState>()(
 
       setUser: (user) => set({ user }),
 
+      /**
+       * Sends OTP to user (email or phone)
+       */
       sendOtp: async (identifier, method) => {
         const { success, data } = await handleApiCall(
           set,
@@ -107,6 +118,9 @@ export const useAuthStore = create<AuthState>()(
         return { success: false };
       },
 
+      /**
+       * Verifies OTP for user
+       */
       verifyOtp: async (otp, identifier) => {
         const { success, data } = await handleApiCall(
           set,
@@ -129,6 +143,9 @@ export const useAuthStore = create<AuthState>()(
           : { success: false };
       },
 
+      /**
+       * Checks if a user exists (for registration flow)
+       */
       checkUserExists: async (identifier: string) => {
         try {
           const res = await fetch("/api/auth/check-user-exists", {
@@ -144,6 +161,9 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      /**
+       * Fetches user from session (runs on app mount/refresh)
+       */
       fetchSessionUser: async () => {
         try {
           const res = await fetch("/api/auth/session");
@@ -155,6 +175,9 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      /**
+       * Registers new user
+       */
       register: async (
         name,
         password,
@@ -181,7 +204,6 @@ export const useAuthStore = create<AuthState>()(
             const result = await response.json();
             if (!response.ok)
               throw new Error(result.message || "Registration failed");
-            // API should consistently return the user object on success
             if (!result.user)
               throw new Error("Registration response was invalid.");
             return result;
@@ -192,28 +214,26 @@ export const useAuthStore = create<AuthState>()(
         if (success && data?.user) {
           set({ user: data.user, verificationId: null });
         } else {
-          set({ user: null }); // Clear any optimistic user data on failure
+          set({ user: null });
         }
         return { success };
       },
 
+      /**
+       * Log in with identifier (email/phone) and password
+       */
       login: async (identifier, password, method) => {
-        const { success, data } = await handleApiCall(
-          set,
-          async () => {
-            const response = await fetch("/api/auth/login", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ identifier, password, method }),
-            });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.message || "Login failed");
-            // API should consistently return the user object on success
-            if (!result.user) throw new Error("Login response was invalid.");
-            return result;
-          }
-          // Success toast is handled in the component for better UX
-        );
+        const { success, data } = await handleApiCall(set, async () => {
+          const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier, password, method }),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.message || "Login failed");
+          if (!result.user) throw new Error("Login response was invalid.");
+          return result;
+        });
 
         if (success && data?.user) {
           set({ user: data.user });
@@ -221,6 +241,9 @@ export const useAuthStore = create<AuthState>()(
         return { success };
       },
 
+      /**
+       * Logs user out (removes cookie, clears state)
+       */
       logout: async () => {
         set({ isLoading: true });
         try {
@@ -230,20 +253,18 @@ export const useAuthStore = create<AuthState>()(
           console.error("Logout failed:", error);
           toast.error("Logout failed. Please try again.");
         } finally {
-          // This should be the single source of truth for user state.
           set({
             user: null,
             isLoading: false,
             error: null,
             verificationId: null,
           });
-          // The component calling logout should handle the redirect.
         }
       },
     }),
     {
       name: "auth-storage",
-      // Only persist the user object, not the entire state.
+      // Only persist the user object, not the loading/error state!
       partialize: (state) => ({ user: state.user }),
     }
   )

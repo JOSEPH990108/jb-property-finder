@@ -1,45 +1,44 @@
 // src\lib\utils.ts
+
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { parsePhoneNumberFromString, CountryCode } from "libphonenumber-js";
+import { COUNTRY_CODE_TO_ISO } from "@/data/constants";
 
-// utils/propertyScoring.ts
-type Property = {
-  id: string;
-  price: number;
-  location: string;
-  rooms: number;
-  size: number;
-  // ... other properties
-};
-
-type UserInput = {
-  budget: [number, number];
-  locations: string[];
-  peopleCount: string;
-  priorities: string[];
-};
-
-const COUNTRY_CODE_TO_ISO: Record<string, CountryCode> = {
-  "+60": "MY",
-  "+65": "SG",
-  "+66": "TH",
-};
-
+// --- Tailwind & CSS Utility ---
+/**
+ * Merges class names with support for conditional logic.
+ * Combines clsx and tailwind-merge.
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// --- Currency & Math ---
+/**
+ * Formats a number as Malaysian Ringgit (RM).
+ */
 export function formatCurrency(value: number, decimals = 2): string {
-  return `RM ${value.toLocaleString(undefined, {
+  const formatter = new Intl.NumberFormat("ms-MY", {
+    style: "currency",
+    currency: "MYR",
+    minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-  })}`;
+  });
+  return formatter.format(value);
 }
 
+/**
+ * Rounds a number to 2 decimal places.
+ */
 export function round(num: number) {
   return Math.round(num * 100) / 100;
 }
 
+/**
+ * Validates and formats a mobile number based on country code.
+ * - Returns .isValid, .formatted, .reason (if invalid)
+ */
 export function validateMobileByCountry(
   rawInput: string,
   countryCode: string,
@@ -65,7 +64,7 @@ export function validateMobileByCountry(
     return { isValid: false, reason: "Phone number is required" };
   }
 
-  // Try to format it into international style
+  // Try to format into international style
   if (cleaned.startsWith(countryCode.replace("+", ""))) {
     cleaned = `+${cleaned}`;
   } else if (cleaned.startsWith("0")) {
@@ -89,12 +88,37 @@ export function validateMobileByCountry(
   };
 }
 
+// --- Property Recommendation/Scoring ---
+
+type Property = {
+  id: string;
+  price: number;
+  location: string;
+  rooms: number;
+  size: number;
+  // ... other properties
+};
+
+type UserInput = {
+  budget: [number, number];
+  locations: string[];
+  peopleCount: string;
+  priorities: string[];
+};
+
+/**
+ * Maps peopleCount to minimum required rooms.
+ */
 export function getRoomRequirement(peopleCount: string): number {
   if (peopleCount === "1-2") return 2;
   if (peopleCount === "3-5") return 3;
   return 4;
 }
 
+/**
+ * Calculates a recommendation score for a property based on user input.
+ * - Budget, location, room count, priorities, etc.
+ */
 export function calculatePropertyScore(
   property: Property,
   user: UserInput
@@ -102,21 +126,21 @@ export function calculatePropertyScore(
   let score = 0;
   const [minBudget, maxBudget] = user.budget;
 
-  // Budget Match (within 10% buffer)
+  // Budget match (within 10% buffer)
   if (property.price >= minBudget * 0.9 && property.price <= maxBudget * 1.1) {
     score += 30;
   } else if (property.price < minBudget || property.price > maxBudget) {
     score -= 10;
   }
 
-  // Location Match (exact match bonus)
+  // Location match (bonus for exact, partial for includes)
   if (user.locations.includes(property.location)) {
     score += 25;
   } else if (user.locations.some((loc) => property.location.includes(loc))) {
-    score += 10; // Partial match
+    score += 10;
   }
 
-  // Room Count Match
+  // Room count match
   const requiredRooms = getRoomRequirement(user.peopleCount);
   if (property.rooms >= requiredRooms) {
     score += 20;
@@ -127,11 +151,12 @@ export function calculatePropertyScore(
   // Priority-based scoring
   user.priorities.forEach((priority) => {
     switch (priority) {
-      case "Price":
+      case "Price": {
         const priceRatio =
           1 - (property.price - minBudget) / (maxBudget - minBudget);
         score += Math.max(0, priceRatio * 15);
         break;
+      }
       case "House Size":
         if (property.size > 100) score += 15;
         else if (property.size > 70) score += 10;
@@ -146,6 +171,10 @@ export function calculatePropertyScore(
   return Math.max(0, score);
 }
 
+// --- Time/Timezone Utilities ---
+/**
+ * Returns the current time in Malaysia (UTC+8).
+ */
 export const getMalaysiaTime = () => {
   const utc = new Date();
   const malaysiaOffsetMs = 8 * 60 * 60 * 1000;
